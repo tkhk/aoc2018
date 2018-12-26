@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	//	"fmt"
+	"fmt"
 	"io/ioutil"
 	"log"
 )
@@ -18,12 +18,13 @@ func generateCaseMap() map[byte]byte {
 }
 
 func main() {
-	part1()
+	// part1()
+	fmt.Println(part2())
 }
 
 var caseMap = map[byte]byte{}
 
-func part1() {
+func part1() int {
 	caseMap = generateCaseMap()
 
 	b, err := ioutil.ReadFile("input.txt")
@@ -31,40 +32,128 @@ func part1() {
 		log.Fatal(err)
 	}
 
-	var targets []byte
-	targets = b
-	// for {
-	duplicatedIndexes := searchDuplicatedIndexes(targets)
-	// if len(duplicatedIndexes) == 0 {
-	// 	break
-	// }
-	newTargets := make([]byte, len(targets)-len(duplicatedIndexes))
-
-	newTargetsIndex := 0
-	duplicatedIndexesIndex := 0
-	for i := range newTargets {
-		if i != duplicatedIndexes[duplicatedIndexesIndex] {
-			continue
+	before := b
+	var result []byte
+	for {
+		after := deleteDuplicate(before)
+		if len(before) == len(after) {
+			result = after
+			break
 		}
-		newTargets[i] = targets[i]
+		before = after
 	}
-	//}
+
+	return len(result)
 }
 
-func searchDuplicatedIndexes(b []byte) []int {
-	removeIndexes := []int{}
-	for i := 0; i < len(b); i++ {
-		if _, ok := caseMap[b[i]]; !ok {
-			if b[i] == '\n' {
+func deleteDuplicate(src []byte) []byte {
+	deleteMarks := make([]int, len(src))
+	markIndex := 0
+	nextPassFlag := false
+	for i := range src {
+		if nextPassFlag {
+			deleteMarks[markIndex] = i
+			markIndex++
+			nextPassFlag = false
+			continue
+		}
+		if _, ok := caseMap[src[i]]; !ok {
+			if src[i] == '\n' {
 				continue
 			}
-			log.Fatalf("Does not exist in caseMap: Unexpected string: %v", b[i])
+			log.Fatalf("Does not exist in caseMap: Unexpected string: %x", src[i])
 		}
-
-		if caseMap[b[i]] == b[i+1] {
-			removeIndexes = append(removeIndexes, []int{i, i + 1}...)
-			i++
+		if caseMap[src[i]] == src[i+1] {
+			deleteMarks[markIndex] = i
+			markIndex++
+			nextPassFlag = true
 		}
 	}
-	return removeIndexes
+
+	if markIndex == 0 {
+		return src
+	}
+
+	result := make([]byte, len(src)-markIndex)
+	resultIndex := 0
+	deleteIndex := 0
+	for i := range src {
+		if i == deleteMarks[deleteIndex] {
+			deleteIndex++
+			continue
+		}
+		result[resultIndex] = src[i]
+		resultIndex++
+	}
+	return result
+}
+
+func part2() int {
+	caseMap = generateCaseMap()
+	ba, err := ioutil.ReadFile("input.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	before := ba
+	min := len(ba)
+	for _, b := range []byte("abcdefghijklmnopqrstuvwxyz") {
+		var result []byte
+		for {
+			after := deleteDuplicateAndByte(before, b)
+			if len(before) == len(after) {
+				result = after
+				break
+			}
+			before = after
+		}
+	}
+	return min
+}
+
+func deleteDuplicateAndByte(src []byte, removeByte byte) []byte {
+	deleteMarks := make([]int, len(src))
+	markIndex := 0
+	nextPassFlag := false
+	for i := range src {
+		if src[i] == removeByte || src[i] == caseMap[removeByte] {
+			deleteMarks[markIndex] = i
+			markIndex++
+			continue
+		}
+		if nextPassFlag {
+			deleteMarks[markIndex] = i
+			markIndex++
+			nextPassFlag = false
+			continue
+		}
+		if _, ok := caseMap[src[i]]; !ok {
+			if src[i] == '\n' {
+				continue
+			}
+			log.Fatalf("Does not exist in caseMap: Unexpected string: %x", src[i])
+		}
+		if caseMap[src[i]] == src[i+1] {
+			deleteMarks[markIndex] = i
+			markIndex++
+			nextPassFlag = true
+		}
+	}
+
+	if markIndex == 0 {
+		return src
+	}
+
+	result := make([]byte, len(src)-markIndex)
+	resultIndex := 0
+	deleteIndex := 0
+	for i := range src {
+		if i == deleteMarks[deleteIndex] {
+			deleteIndex++
+			continue
+		}
+		result[resultIndex] = src[i]
+		resultIndex++
+	}
+	return result
 }
